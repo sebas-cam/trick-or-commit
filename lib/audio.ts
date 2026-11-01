@@ -77,8 +77,8 @@ export async function renderSoundtrack(doors: Door[], theme: Theme): Promise<Aud
   doors.forEach((door, i) => {
     const { knock, react } = doorTimes(i);
     for (let k = 0; k < 3; k++) {
-      tone(ctx, comp, knock + k * 0.25, 0.1, 150, "sine", 0.6, 70);
-      noise(ctx, comp, buf, knock + k * 0.25, 0.05, 0.3, 900);
+      tone(ctx, comp, knock + k * 0.2, 0.1, 150, "sine", 0.6, 70);
+      noise(ctx, comp, buf, knock + k * 0.2, 0.05, 0.3, 900);
     }
     if (door.outcome === "treat") {
       [76, 79, 84, 88].forEach((n, j) => tone(ctx, comp, react + j * 0.08, 0.32, midi(n), "triangle", 0.3));

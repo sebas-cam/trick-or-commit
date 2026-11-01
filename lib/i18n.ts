@@ -18,23 +18,23 @@ const num = (lang: Lang, n: number) => n.toLocaleString(lang === "es" ? "es-CO" 
 const VERDICTS: Record<Lang, Record<VerdictId, VerdictText>> = {
   es: {
     empty: { title: "Cubeta Vacía", tagline: "No hay puertas donde tocar. Todavía.", stat: () => "0 repos públicos" },
-    fullSize: { title: "Chocolate Gigante", tagline: "Todos tus repos reparten de los buenos.", stat: (n) => `${n} de ${n} puertas con dulces` },
-    graveyard: { title: "Turno de Cementerio", tagline: "Todas las puertas fueron truco. Hora de revivir algo.", stat: (n) => `${n} repos sin un push en más de un año` },
+    fullSize: { title: "Chocolate Gigante", tagline: "Todos tus repos reparten de los buenos.", stat: (n) => `${n} de ${n} repos con dulces` },
+    graveyard: { title: "Turno de Cementerio", tagline: "Todos tus repos fueron truco. Hora de revivir algo.", stat: (n) => `${n} repos sin un push en más de un año` },
     nightKnocker: { title: "Toca-Puertas de Medianoche", tagline: "Cuando todos duermen, tú haces push.", stat: (n) => `${n}% de tus commits entre medianoche y las 5 a. m.` },
     sugarRush: { title: "Subidón de Azúcar", tagline: "No paras de repartir commits.", stat: (n) => `${n.toLocaleString("es-CO")} contribuciones este año` },
     candyHoarder: { title: "Acaparador de Dulces", tagline: "La gente te deja estrellas en la cubeta.", stat: (n) => `${n.toLocaleString("es-CO")} estrellas en tus repos` },
     hauntedKeeper: { title: "Casero Embrujado", tagline: "Tus repos no están muertos. Solo descansan.", stat: (n) => `${n} repos sin un push en más de un año` },
-    trickOrTreater: { title: "Dulce o Truco", tagline: "Mitad dulces, mitad telarañas.", stat: (n) => `${n} puertas con dulces` },
+    trickOrTreater: { title: "Dulce o Truco", tagline: "Mitad dulces, mitad telarañas.", stat: (n) => `${n} repos con dulces` },
   },
   en: {
     empty: { title: "The Empty Bucket", tagline: "No doors to knock on. Yet.", stat: () => "0 public repos" },
-    fullSize: { title: "Full-Size Candy Bar", tagline: "Every repo hands out the good stuff.", stat: (n) => `${n} of ${n} doors gave treats` },
-    graveyard: { title: "Graveyard Shift", tagline: "Every door was a trick. Time to raise the dead.", stat: (n) => `${n} repos without a push in over a year` },
+    fullSize: { title: "Full-Size Candy Bar", tagline: "Every repo hands out the good stuff.", stat: (n) => `${n} of ${n} repos gave treats` },
+    graveyard: { title: "Graveyard Shift", tagline: "Every repo was a trick. Time to raise the dead.", stat: (n) => `${n} repos without a push in over a year` },
     nightKnocker: { title: "Midnight Knocker", tagline: "While everyone sleeps, you push.", stat: (n) => `${n}% of your commits land between midnight and 5 AM` },
     sugarRush: { title: "Sugar Rush Shipper", tagline: "You just keep handing out commits.", stat: (n) => `${n.toLocaleString("en-US")} contributions this year` },
     candyHoarder: { title: "Candy Hoarder", tagline: "People keep dropping stars in your bucket.", stat: (n) => `${n.toLocaleString("en-US")} stars across your repos` },
     hauntedKeeper: { title: "Haunted House Keeper", tagline: "Your repos aren't dead. They're just resting.", stat: (n) => `${n} repos without a push in over a year` },
-    trickOrTreater: { title: "Trick-or-Treater", tagline: "Half candy, half cobwebs.", stat: (n) => `${n} doors gave treats` },
+    trickOrTreater: { title: "Trick-or-Treater", tagline: "Half candy, half cobwebs.", stat: (n) => `${n} repos gave treats` },
   },
 };
 

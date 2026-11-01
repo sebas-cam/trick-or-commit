@@ -15,7 +15,7 @@ const FPS = 8;
 const PET_SCALE = 2;
 // Where the pet stands on screen, and how far ahead of it the house sits, so it never covers the door.
 const PET_SCREEN_X = 66, HOUSE_AHEAD = 112;
-export const INTRO = 1.8, WALK = 1.0, KNOCK = 0.9, REACT = 1.7, END = 5;
+export const INTRO = 1.8, WALK = 0.8, KNOCK = 0.7, REACT = 1.4, END = 5;
 const PER = WALK + KNOCK + REACT;
 
 const DISPLAY = "Creepster, Impact, fantasy";
@@ -350,7 +350,9 @@ function drawEnd(ctx: CanvasRenderingContext2D, a: Atlas, art: SceneArt, t: numb
   fit.lines.forEach((l, i) => text(ctx, l, WIDTH / 2, 420 + (i + 0.3) * fit.size, `${fit.size}px ${DISPLAY}`, pal.accent, 10));
   const below = 420 + fit.lines.length * fit.size + 70;
   text(ctx, v.tagline, WIDTH / 2, below, `600 38px ${BODY}`, pal.text);
-  drawPet(ctx, a, verdict.treats >= verdict.tricks ? ROW.waving : ROW.failed, t, WIDTH / 2, 1420, 2.1);
+  // Follows the title, not the tally: plenty of old repos shouldn't make a Sugar Rush Shipper cry.
+  const sad = verdict.id === "graveyard" || verdict.id === "hauntedKeeper" || verdict.id === "empty";
+  drawPet(ctx, a, sad ? ROW.failed : ROW.waving, t, WIDTH / 2, 1420, 2.1);
 
   const cells: [string, string, string][] = [
     [String(verdict.treats), verdict.treats === 1 ? ui.oneTreat : ui.treats, pal.accentSoft],
@@ -401,7 +403,7 @@ export function renderFrame(ctx: CanvasRenderingContext2D, a: Atlas, art: SceneA
     g.fillStyle = "#fff"; g.fillRect(s.x, s.y, 1, 1);
   }
   // Low enough to clear the repo sign, far enough right to clear the TREAT/TRICK text.
-  const mx = 234 - cam * 0.01, my = 112;
+  const mx = 234 - cam * 0.002, my = 112;
   g.fillStyle = pal.moon;
   g.beginPath(); g.arc(mx, my, 24, 0, Math.PI * 2); g.fill();
   g.fillStyle = pal.moonEdge;
@@ -473,7 +475,7 @@ export function renderFrame(ctx: CanvasRenderingContext2D, a: Atlas, art: SceneA
     text(ctx, name, WIDTH / 2, 260, `700 54px ${MONO}`, pal.text);
   }
   if (doorState === "knock") {
-    const beat = Math.floor((local - WALK) * 4);
+    const beat = Math.floor((local - WALK) * 5);
     if (beat < 3) text(ctx, d.lang === "es" ? "¡TOC!" : "KNOCK!", (petX - cam + HOUSE_AHEAD) * PX, 1290 - beat * 70, `${72 + beat * 14}px ${DISPLAY}`, pal.text, 8);
   }
   if (rt >= 0) {

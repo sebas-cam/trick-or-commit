@@ -27,7 +27,8 @@ export type Verdict = {
 };
 
 const DAY = 86_400_000;
-const DOORS = 5;
+const DOORS = 10;
+const TOP_STARRED = 2, RECENT_UNTIL = 7, OLD_UNTIL = 9;
 const ACTIVE_DAYS = 120;
 const ABANDONED_DAYS = 365;
 
@@ -41,17 +42,22 @@ function houseFor(days: number, stars: number): HouseStyle {
   return stars >= 10 || days < 30 ? "mansion" : "cottage";
 }
 
-/** Best-known repos first, the most abandoned one last so the run ends on the scare. */
+/** Best-known repos, then recent ones, then a few old ones, with the most abandoned last so the run ends on the scare. */
 function pickRepos(pool: Repo[]): Repo[] {
   const age = (r: Repo) => +new Date(r.pushedAt);
   const byStars = [...pool].sort((a, b) => b.stars - a.stars);
   const byPush = [...pool].sort((a, b) => age(b) - age(a));
   const finale = byPush[byPush.length - 1];
   const picked = new Map<string, Repo>();
-  for (const r of [...byStars.slice(0, 2), ...byPush, ...byStars]) {
-    if (picked.size >= DOORS - 1) break;
-    if (r !== finale) picked.set(r.name, r);
-  }
+  const take = (repos: Repo[], until: number) => {
+    for (const r of repos) {
+      if (picked.size >= until) break;
+      if (r !== finale) picked.set(r.name, r);
+    }
+  };
+  take(byStars, TOP_STARRED);
+  take(byPush, RECENT_UNTIL);
+  take([...byPush].reverse(), OLD_UNTIL);
   return finale ? [...picked.values(), finale] : [];
 }
 
@@ -80,8 +86,9 @@ export function knockOnDoors(profile: Pick<GitHubProfile, "repos" | "contributio
     };
   });
 
-  const treats = doors.filter((d) => d.outcome === "treat").length;
-  const tricks = doors.length - treats;
+  // The doors are only the highlights: the score covers every repo.
+  const treats = pool.filter((r) => isAlive((now - +new Date(r.pushedAt)) / DAY, r.stars)).length;
+  const tricks = pool.length - treats;
   const dead = pool.filter((r) => (now - +new Date(r.pushedAt)) / DAY >= ABANDONED_DAYS).length;
   const totalStars = pool.reduce((sum, r) => sum + r.stars, 0);
   const { contributions: c, habits: h } = profile;
