@@ -87,7 +87,7 @@ function house(ctx: CanvasRenderingContext2D, x: number, ground: number, name: s
   ctx.beginPath(); ctx.arc(x + 14, ground - 38, 3.5, 0, Math.PI * 2); ctx.fill();
   // sign with repo name
   const label = name.length > 16 ? name.slice(0, 15) + "…" : name;
-  ctx.font = "600 17px ui-monospace, Menlo, monospace";
+  ctx.font = "600 17px 'JetBrains Mono', ui-monospace, Menlo, monospace";
   const tw = ctx.measureText(label).width + 20;
   ctx.fillStyle = "#120c1c";
   ctx.fillRect(x - tw / 2, ground - h - 34, tw, 28);
@@ -98,18 +98,18 @@ function house(ctx: CanvasRenderingContext2D, x: number, ground: number, name: s
 }
 
 function bubble(ctx: CanvasRenderingContext2D, x: number, y: number, title: string, sub: string, good: boolean) {
-  ctx.font = "800 30px system-ui, sans-serif";
+  ctx.font = "30px Creepster, Impact, fantasy";
   const w1 = ctx.measureText(title).width;
-  ctx.font = "500 18px ui-monospace, Menlo, monospace";
+  ctx.font = "500 18px 'JetBrains Mono', ui-monospace, Menlo, monospace";
   const w2 = ctx.measureText(sub).width;
   const w = Math.max(w1, w2) + 36, h = 82;
   const bx = Math.min(Math.max(x - w / 2, 12), SIZE - w - 12);
   ctx.fillStyle = good ? "#ff7a18" : "#7b5cff";
   ctx.beginPath(); ctx.roundRect(bx, y - h, w, h, 16); ctx.fill();
   ctx.fillStyle = "#0b0614"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-  ctx.font = "800 30px system-ui, sans-serif";
+  ctx.font = "30px Creepster, Impact, fantasy";
   ctx.fillText(title, bx + w / 2, y - h + 30);
-  ctx.font = "500 18px ui-monospace, Menlo, monospace";
+  ctx.font = "500 18px 'JetBrains Mono', ui-monospace, Menlo, monospace";
   ctx.fillText(sub, bx + w / 2, y - h + 60);
 }
 
@@ -183,7 +183,7 @@ function render(ctx: CanvasRenderingContext2D, a: Atlas, t: number, p: Props) {
   const done = doors.slice(0, doorIdx + (showBubble ? 1 : 0));
   const tr = done.filter((d) => d.outcome === "treat").length;
   ctx.fillStyle = "rgba(11,6,20,.75)"; ctx.beginPath(); ctx.roundRect(16, 16, 330, 50, 12); ctx.fill();
-  ctx.fillStyle = "#ffd9a8"; ctx.font = "700 20px ui-monospace, Menlo, monospace";
+  ctx.fillStyle = "#ffd9a8"; ctx.font = "700 20px 'JetBrains Mono', ui-monospace, Menlo, monospace";
   ctx.textAlign = "left"; ctx.textBaseline = "middle";
   ctx.fillText(`@${p.login}  🍬 ${tr}  🕸️ ${done.length - tr}`, 30, 41);
 
@@ -193,16 +193,16 @@ function render(ctx: CanvasRenderingContext2D, a: Atlas, t: number, p: Props) {
     const k = Math.min(1, endT / 0.5);
     ctx.fillStyle = `rgba(7,3,15,${0.97 * k})`; ctx.fillRect(0, 0, SIZE, SIZE);
     ctx.globalAlpha = k; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-    ctx.fillStyle = "#ff7a18"; ctx.font = "600 22px ui-monospace, Menlo, monospace";
+    ctx.fillStyle = "#ff7a18"; ctx.font = "600 22px 'JetBrains Mono', ui-monospace, Menlo, monospace";
     ctx.fillText(`@${p.login} is a…`, SIZE / 2, 110);
-    ctx.fillStyle = "#fff"; ctx.font = "900 50px system-ui, sans-serif";
+    ctx.fillStyle = "#fff"; ctx.font = "58px Creepster, Impact, fantasy";
     ctx.fillText(p.verdict.title, SIZE / 2, 170);
-    ctx.fillStyle = "#cbb8e6"; ctx.font = "500 20px system-ui, sans-serif";
+    ctx.fillStyle = "#cbb8e6"; ctx.font = "500 20px 'DM Sans', system-ui, sans-serif";
     ctx.fillText(p.verdict.tagline, SIZE / 2, 218);
     drawPet(ctx, a, p.verdict.treats >= p.verdict.tricks ? ROW.waving : ROW.failed, t, SIZE / 2, 500, 1.1);
-    ctx.fillStyle = "#ffd9a8"; ctx.font = "700 28px ui-monospace, Menlo, monospace";
+    ctx.fillStyle = "#ffd9a8"; ctx.font = "700 28px 'JetBrains Mono', ui-monospace, Menlo, monospace";
     ctx.fillText(`🍬 ${p.verdict.treats} treats   🕸️ ${p.verdict.tricks} tricks`, SIZE / 2, 560);
-    ctx.fillStyle = "#8f7aa8"; ctx.font = "500 16px ui-monospace, Menlo, monospace";
+    ctx.fillStyle = "#8f7aa8"; ctx.font = "500 16px 'JetBrains Mono', ui-monospace, Menlo, monospace";
     ctx.fillText(`${p.petName} · pets by petdex.dev · trick-or-commit`, SIZE / 2, 680);
     ctx.globalAlpha = 1;
   }
@@ -225,8 +225,11 @@ export default function Scene(props: Props) {
   useEffect(() => {
     let raf = 0;
     let alive = true;
-    loadAtlas(`/api/sprite/${encodeURIComponent(props.petSlug)}`)
-      .then((a) => {
+    const fonts = Promise.all(
+      ["30px Creepster", "20px 'DM Sans'", "18px 'JetBrains Mono'"].map((f) => document.fonts.load(f).catch(() => null)),
+    );
+    Promise.all([loadAtlas(`/api/sprite/${encodeURIComponent(props.petSlug)}`), fonts])
+      .then(([a]) => {
         if (!alive) return;
         atlasRef.current = a;
         setStatus("ready");

@@ -1,4 +1,10 @@
 import type { Metadata } from "next";
+import "@fontsource/creepster/400.css";
+import "@fontsource/dm-sans/400.css";
+import "@fontsource/dm-sans/600.css";
+import "@fontsource/dm-sans/800.css";
+import "@fontsource/jetbrains-mono/400.css";
+import "@fontsource/jetbrains-mono/700.css";
 import "./globals.css";
 
 const SITE = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
@@ -18,7 +24,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <main className="wrap">{children}</main>
         <footer className="footer">
           Pets by <a href="https://petdex.dev">Petdex</a> (Crafter Station) · Open source on{" "}
-          <a href="https://github.com/">GitHub</a> · Not affiliated with GitHub or Petdex
+          <a href="https://github.com/sebas-cam/trick-or-commit">GitHub</a> · Not affiliated with GitHub or Petdex
         </footer>
       </body>
     </html>
