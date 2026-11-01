@@ -81,7 +81,13 @@ export async function renderSoundtrack(doors: Door[], theme: Theme): Promise<Aud
       noise(ctx, comp, buf, knock + k * 0.2, 0.05, 0.3, 900);
     }
     if (door.outcome === "treat") {
-      [76, 79, 84, 88].forEach((n, j) => tone(ctx, comp, react + j * 0.08, 0.32, midi(n), "triangle", 0.3));
+      // Exorcised: the ghost whooshes out first, then the candy.
+      const at = door.exorcised !== undefined ? react + 0.35 : react;
+      if (door.exorcised !== undefined) noise(ctx, comp, buf, react, 0.6, 0.25, 300, 4000);
+      [76, 79, 84, 88].forEach((n, j) => tone(ctx, comp, at + j * 0.08, 0.32, midi(n), "triangle", 0.3));
+    } else if (door.outcome === "rest") {
+      // A soft bell for a repo laid to rest.
+      [64, 71].forEach((n, j) => tone(ctx, comp, react + j * 0.25, 1.2, midi(n), "sine", 0.22));
     } else {
       tone(ctx, comp, react, 1.1, 220, "sawtooth", 0.22, 42);
       noise(ctx, comp, buf, react, 1.2, 0.3, 3200, 200);

@@ -64,9 +64,11 @@ export async function getSharedRepos(token: string, login: string): Promise<Shar
         repos.push({
           name: r.name,
           stars: r.stargazers_count ?? 0,
-          pushedAt: r.pushed_at ?? r.updated_at,
+          // Metadata-only access can't read commits, so private repos are judged by their last push.
+          activeAt: r.pushed_at ?? r.updated_at,
           language: r.language,
           fork: !!r.fork,
+          archived: !!r.archived,
           private: !!r.private,
         });
       }
@@ -98,8 +100,8 @@ function mockShared(): SharedRepos {
   return {
     installed: true,
     repos: [
-      { name: "acme-client-secret-project", stars: 0, pushedAt: d(1), language: "Rust", fork: false, private: true },
-      { name: "stealth-startup", stars: 0, pushedAt: d(900), language: "Go", fork: false, private: true },
+      { name: "acme-client-secret-project", stars: 0, activeAt: d(1), language: "Rust", fork: false, archived: false, private: true },
+      { name: "stealth-startup", stars: 0, activeAt: d(900), language: "Go", fork: false, archived: false, private: true },
     ],
   };
 }

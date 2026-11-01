@@ -1,13 +1,16 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { knockAgain } from "@/app/u/[username]/actions";
 import { renderSoundtrack } from "@/lib/audio";
+import { rememberDoors } from "@/lib/exorcism";
 import { exportVideo, type ExportResult } from "@/lib/export";
-import { ageLabel, UI, verdictText, type Lang, type Theme } from "@/lib/i18n";
+import { ageLabel, outcomeLabel, UI, verdictText, type Lang, type Theme } from "@/lib/i18n";
 import type { Pet } from "@/lib/petdex";
 import { HEIGHT, renderFrame, WIDTH, type SceneData } from "@/lib/scene";
-import { maskPrivate, type Verdict } from "@/lib/score";
+import { markExorcised, maskPrivate, type Verdict } from "@/lib/score";
 import { useScene } from "./useScene";
 
 type Props = {
@@ -27,10 +30,26 @@ export default function Studio({ login, verdict: fullVerdict, pets, initialPet, 
   const ui = UI[lang];
   const site = siteUrl.replace(/^https?:\/\//, "");
   const [showNames, setShowNames] = useState(false);
-  const verdict = useMemo(
-    () => (showNames ? fullVerdict : maskPrivate(fullVerdict, ui.privateRepo)),
-    [showNames, fullVerdict, ui.privateRepo],
-  );
+  // Doors that were haunted the last time this browser knocked: repo → days it had been haunted.
+  const [exorcised, setExorcised] = useState<Record<string, number>>({});
+  const remembered = useRef<Verdict | null>(null);
+  useEffect(() => {
+    // Once per verdict: a second pass would compare the run against itself and forget the exorcism.
+    if (remembered.current === fullVerdict) return;
+    remembered.current = fullVerdict;
+    setExorcised(rememberDoors(login, fullVerdict));
+  }, [login, fullVerdict]);
+  const verdict = useMemo(() => {
+    const marked = markExorcised(fullVerdict, exorcised);
+    return showNames ? marked : maskPrivate(marked, ui.privateRepo);
+  }, [showNames, fullVerdict, exorcised, ui.privateRepo]);
+  const exorcisedCount = verdict.doors.filter((d) => d.exorcised !== undefined).length;
+  // The scariest public door: the one worth exorcising.
+  const haunted = [...verdict.doors].reverse().find((d) => d.outcome === "trick" && !d.private);
+  const router = useRouter();
+  const [knocking, startKnock] = useTransition();
+  // Which door the last "knock again" was for: if it's still the haunted one afterwards, say so.
+  const [knockedFor, setKnockedFor] = useState<string | null>(null);
   const v = verdictText(verdict, lang);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [pet, setPet] = useState(initialPet);
@@ -148,7 +167,18 @@ export default function Studio({ login, verdict: fullVerdict, pets, initialPet, 
   }
 
   const pageUrl = `${siteUrl}/u/${login}?lang=${lang}&theme=${theme}`;
-  const shareText = ui.shareText(v.title, verdict.treats, verdict.tricks);
+  const shareText = ui.shareText(v.title, verdict.treats, verdict.tricks, exorcisedCount);
+
+  function knock() {
+    if (!haunted) return;
+    const repo = haunted.repo;
+    setKnockedFor(null);
+    startKnock(async () => {
+      await knockAgain(login);
+      router.refresh();
+      setKnockedFor(repo);
+    });
+  }
   const q = encodeURIComponent;
 
   async function shareVideo() {
@@ -183,9 +213,11 @@ export default function Studio({ login, verdict: fullVerdict, pets, initialPet, 
         <dl className="stats">
           <div><dd className="treat">{verdict.treats}</dd><dt>{verdict.treats === 1 ? ui.oneTreat : ui.treats}</dt></div>
           <div><dd className="trick">{verdict.tricks}</dd><dt>{verdict.tricks === 1 ? ui.oneTrick : ui.tricks}</dt></div>
+          {verdict.rested > 0 && <div><dd>{verdict.rested}</dd><dt>{verdict.rested === 1 ? ui.oneRested : ui.rested}</dt></div>}
           {verdict.longestStreak !== null && <div><dd>{verdict.longestStreak}</dd><dt>{ui.streak}</dt></div>}
         </dl>
         <p className="stat-line">{v.stat}</p>
+        {exorcisedCount > 0 && <p className="stat-line treat">👻 {ui.exorcisedCount(exorcisedCount)}</p>}
 
         <div className="actions">
           {video ? (
@@ -204,6 +236,20 @@ export default function Studio({ login, verdict: fullVerdict, pets, initialPet, 
         </div>
         {failed && <p className="note" role="alert">{ui.renderFail}</p>}
         {video?.ext === "webm" && <p className="note">{ui.webm}</p>}
+
+        {haunted && (
+          <section className="exorcism">
+            <h2 className="eyebrow">{ui.exorcismTitle}</h2>
+            <p className="note">{ui.exorcismBody(haunted.repo)}</p>
+            <div className="actions">
+              <a className="btn ghost" href={`https://github.com/${login}/${haunted.repo}`} target="_blank" rel="noopener noreferrer">{ui.openRepo}</a>
+              <button type="button" className="ghost" onClick={knock} disabled={knocking}>
+                {knocking ? ui.knockingAgain : ui.knockAgain}
+              </button>
+            </div>
+            {!knocking && knockedFor === haunted.repo && <p className="note" role="status">{ui.stillHaunted}</p>}
+          </section>
+        )}
 
         {privateRun ? (
           <section className="private-run">
@@ -265,7 +311,7 @@ export default function Studio({ login, verdict: fullVerdict, pets, initialPet, 
               {verdict.doors.map((d, i) => (
                 <li key={i}>
                   <span>{d.repo}</span>
-                  <span className={d.outcome}>{d.outcome === "treat" ? ui.oneTreat : ui.oneTrick} · {ageLabel(d.days, lang)}</span>
+                  <span className={d.outcome}>{outcomeLabel(d, lang)} · {ageLabel(d.days, lang)}</span>
                 </li>
               ))}
             </ul>

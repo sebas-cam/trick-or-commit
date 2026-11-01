@@ -83,6 +83,7 @@ button.sound { width: 100%; margin-top: 8px; min-height: 44px; font: 700 13px va
 .stats dt { font-size: 12px; color: var(--muted); }
 .treat { color: var(--accent-soft); }
 .trick { color: var(--trick); }
+.rest { color: var(--muted); }
 .stat-line { font: 400 14px var(--mono); line-height: 1.5; color: var(--muted); }
 
 .actions { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -100,6 +101,8 @@ button.chip:hover:not(:disabled) { background: var(--card); }
 .log { list-style: none; margin: 0; padding: 0; font: 400 14px var(--mono); }
 .log li { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2px 16px; padding: 9px 0; border-top: 2px solid var(--card); overflow-wrap: anywhere; }
 .install code { display: block; background: var(--card); padding: 14px; font: 400 14px var(--mono); overflow-x: auto; }
+.exorcism { display: flex; flex-direction: column; gap: 10px; background: var(--card); padding: 16px; border-left: 4px solid var(--trick); }
+.exorcism .eyebrow, .exorcism .note { margin: 0; }
 .private-run { display: flex; flex-direction: column; gap: 10px; }
 .private-run .note { margin: 0; }
 .message { text-align: center; padding: 64px 0; }
