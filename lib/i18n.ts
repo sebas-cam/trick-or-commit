@@ -25,6 +25,7 @@ const VERDICTS: Record<Lang, Record<VerdictId, VerdictText>> = {
     candyHoarder: { title: "Acaparador de Dulces", tagline: "La gente te deja estrellas en la cubeta.", stat: (n) => `${n.toLocaleString("es-CO")} estrellas en tus repos` },
     hauntedKeeper: { title: "Casero Embrujado", tagline: "Tus repos no están muertos. Solo descansan.", stat: (n) => `${n} repos sin un push en más de un año` },
     trickOrTreater: { title: "Dulce o Truco", tagline: "Mitad dulces, mitad telarañas.", stat: (n) => `${n} repos con dulces` },
+    curator: { title: "Curador de Museo", tagline: "Todo archivado con honores. Nada abandonado.", stat: (n) => `${n} repos archivados en paz` },
   },
   en: {
     empty: { title: "The Empty Bucket", tagline: "No doors to knock on. Yet.", stat: () => "0 public repos" },
@@ -35,6 +36,7 @@ const VERDICTS: Record<Lang, Record<VerdictId, VerdictText>> = {
     candyHoarder: { title: "Candy Hoarder", tagline: "People keep dropping stars in your bucket.", stat: (n) => `${n.toLocaleString("en-US")} stars across your repos` },
     hauntedKeeper: { title: "Haunted House Keeper", tagline: "Your repos aren't dead. They're just resting.", stat: (n) => `${n} repos without a push in over a year` },
     trickOrTreater: { title: "Trick-or-Treater", tagline: "Half candy, half cobwebs.", stat: (n) => `${n} repos gave treats` },
+    curator: { title: "The Museum Curator", tagline: "Everything archived with honors. Nothing abandoned.", stat: (n) => `${n} repos resting in peace` },
   },
 };
 
@@ -55,12 +57,30 @@ export function ageLabel(days: number, lang: Lang) {
   return es ? `hace ${years.replace(".", ",")} años` : `${years}y ago`;
 }
 
+/** A span of time with no "ago": "4.5y" / "4,5 años". */
+export function spanLabel(days: number, lang: Lang) {
+  const es = lang === "es";
+  if (days < 30) { const d = Math.max(1, Math.round(days)); return es ? `${d} d` : `${d}d`; }
+  if (days < 365) { const m = Math.round(days / 30); return es ? `${m} ${m === 1 ? "mes" : "meses"}` : `${m}mo`; }
+  const years = (days / 365).toFixed(1);
+  return es ? `${years.replace(".", ",")} años` : `${years}y`;
+}
+
 /** The line under TREAT/TRICK: it has to name something true about this repo. */
 export function doorLine(d: Door, lang: Lang) {
   const es = lang === "es";
-  if (d.outcome === "trick") return es ? `Sin un push: ${ageLabel(d.days, lang)}` : `Last push: ${ageLabel(d.days, lang)}`;
+  if (d.exorcised !== undefined) return es ? `Embrujado ${spanLabel(d.exorcised, lang)} → libre` : `Haunted ${spanLabel(d.exorcised, lang)} → free`;
+  if (d.outcome === "rest") return es ? `Archivado · ${ageLabel(d.days, lang)}` : `Archived · ${ageLabel(d.days, lang)}`;
+  if (d.outcome === "trick") return es ? `${spanLabel(d.days, lang)} en silencio` : `Silent for ${spanLabel(d.days, lang)}`;
   if (d.stars > 0) return `★ ${num(lang, d.stars)}${d.language ? ` · ${d.language}` : ""}`;
-  return es ? `Último push: ${ageLabel(d.days, lang)}` : `Last push: ${ageLabel(d.days, lang)}`;
+  return es ? `Último commit: ${ageLabel(d.days, lang)}` : `Last commit: ${ageLabel(d.days, lang)}`;
+}
+
+/** What the log calls each door. */
+export function outcomeLabel(d: Door, lang: Lang) {
+  const ui = UI[lang];
+  if (d.exorcised !== undefined) return ui.oneExorcised;
+  return d.outcome === "treat" ? ui.oneTreat : d.outcome === "trick" ? ui.oneTrick : ui.oneRested;
 }
 
 export const UI = {
@@ -85,7 +105,7 @@ export const UI = {
     invalid: "Ese no parece un usuario de GitHub.",
     how: [
       ["Tocamos tus repos", "Los más conocidos, los más recientes y, al final, el más abandonado."],
-      ["Dulce o truco", "Un push reciente da dulces. Años de silencio traen sustos."],
+      ["Dulce o truco", "Un commit real y reciente da dulces. Años de silencio traen sustos. Los archivados descansan en paz."],
       ["Te llevas el video", "Vertical, con sonido y listo para publicar."],
     ],
     titles: "Los veredictos",
@@ -94,9 +114,22 @@ export const UI = {
     tricks: "trucos",
     oneTreat: "dulce",
     oneTrick: "truco",
+    rested: "archivados",
+    oneRested: "archivado",
+    oneExorcised: "exorcizado",
     streak: "días de racha",
     treat: "¡DULCE!",
     trick: "¡TRUCO!",
+    rest: "Q.E.P.D.",
+    exorcised: "¡EXORCIZADO!",
+    exorcismTitle: "Modo exorcismo",
+    exorcismBody: (repo: string) =>
+      `${repo} está embrujado. Haz un commit real en su rama principal (los commits vacíos no cuentan) y vuelve a tocar.`,
+    openRepo: "Abrir el repo",
+    knockAgain: "Tocar de nuevo",
+    knockingAgain: "Tocando…",
+    stillHaunted: "Sigue embrujado. ¿Ya subiste el commit a la rama principal?",
+    exorcisedCount: (n: number) => (n === 1 ? "1 repo exorcizado" : `${n} repos exorcizados`),
     door: (i: number, n: number) => `puerta ${i} de ${n}`,
     summon: "Invocando a tu pet…",
     petError: "No pudimos cargar a tu pet. Recarga para intentarlo de nuevo.",
@@ -124,8 +157,8 @@ export const UI = {
     back: "Volver",
     notFoundTitle: "Aquí no vive nadie",
     notFoundBody: "No encontramos ese usuario de GitHub.",
-    shareText: (title: string, treats: number, tricks: number) =>
-      `Mi pet de Petdex salió a pedir dulces por mis repos de GitHub 🎃\n\n🍬 ${treats} dulces · 🕸️ ${tricks} trucos → "${title}"\n\nPrueba el tuyo:`,
+    shareText: (title: string, treats: number, tricks: number, exorcised = 0) =>
+      `Mi pet de Petdex salió a pedir dulces por mis repos de GitHub 🎃\n\n🍬 ${treats} dulces · 🕸️ ${tricks} trucos${exorcised ? ` · 👻 ${exorcised} exorcizado${exorcised === 1 ? "" : "s"}` : ""} → "${title}"\n\nPrueba el tuyo:`,
     footer: "Pets de",
     notAffiliated: "Sin afiliación con GitHub ni Petdex",
     videoLead: "¿Qué hay detrás de tu puerta?",
@@ -152,7 +185,7 @@ export const UI = {
     invalid: "That doesn't look like a GitHub username.",
     how: [
       ["We knock on your repos", "The best known, the most recent and, last, the most abandoned."],
-      ["Treat or trick", "A recent push earns candy. Years of silence earn a scare."],
+      ["Treat or trick", "A real, recent commit earns candy. Years of silence earn a scare. Archived repos rest in peace."],
       ["You keep the video", "Vertical, with sound and ready to post."],
     ],
     titles: "The verdicts",
@@ -161,9 +194,22 @@ export const UI = {
     tricks: "tricks",
     oneTreat: "treat",
     oneTrick: "trick",
+    rested: "archived",
+    oneRested: "archived",
+    oneExorcised: "exorcised",
     streak: "day streak",
     treat: "TREAT!",
     trick: "TRICK!",
+    rest: "R.I.P.",
+    exorcised: "EXORCISED!",
+    exorcismTitle: "Exorcism mode",
+    exorcismBody: (repo: string) =>
+      `${repo} is haunted. Make a real commit to its default branch (empty commits don't count), then knock again.`,
+    openRepo: "Open the repo",
+    knockAgain: "Knock again",
+    knockingAgain: "Knocking…",
+    stillHaunted: "Still haunted. Did the commit land on the default branch?",
+    exorcisedCount: (n: number) => (n === 1 ? "1 repo exorcised" : `${n} repos exorcised`),
     door: (i: number, n: number) => `door ${i} of ${n}`,
     summon: "Summoning your pet…",
     petError: "Couldn't load your pet. Refresh to try again.",
@@ -191,8 +237,8 @@ export const UI = {
     back: "Back",
     notFoundTitle: "Nobody lives here",
     notFoundBody: "We couldn't find that GitHub user.",
-    shareText: (title: string, treats: number, tricks: number) =>
-      `My Petdex pet went trick-or-treating through my GitHub repos 🎃\n\n🍬 ${treats} treats · 🕸️ ${tricks} tricks → "${title}"\n\nTry yours:`,
+    shareText: (title: string, treats: number, tricks: number, exorcised = 0) =>
+      `My Petdex pet went trick-or-treating through my GitHub repos 🎃\n\n🍬 ${treats} treats · 🕸️ ${tricks} tricks${exorcised ? ` · 👻 ${exorcised} exorcised` : ""} → "${title}"\n\nTry yours:`,
     footer: "Pets by",
     notAffiliated: "Not affiliated with GitHub or Petdex",
     videoLead: "What's behind your door?",
@@ -200,4 +246,4 @@ export const UI = {
   },
 } as const;
 
-export const VERDICT_IDS: VerdictId[] = ["nightKnocker", "sugarRush", "candyHoarder", "fullSize", "hauntedKeeper", "graveyard"];
+export const VERDICT_IDS: VerdictId[] = ["nightKnocker", "sugarRush", "candyHoarder", "fullSize", "hauntedKeeper", "graveyard", "curator"];

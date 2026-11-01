@@ -12,9 +12,9 @@ const when = (days: number) => new Date(Date.now() - days * DAY).toISOString();
 // Sample repos, only here to show what a run looks like before you enter a username.
 const VERDICT = knockOnDoors({
   repos: [
-    { name: "my-saas", stars: 42, pushedAt: when(3), language: "TypeScript", fork: false },
-    { name: "dotfiles", stars: 2, pushedAt: when(45), language: "Shell", fork: false },
-    { name: "todo-app-final-v3", stars: 0, pushedAt: when(1400), language: "JavaScript", fork: false },
+    { name: "my-saas", stars: 42, activeAt: when(3), language: "TypeScript", fork: false, archived: false },
+    { name: "dotfiles", stars: 2, activeAt: when(45), language: "Shell", fork: false, archived: false },
+    { name: "todo-app-final-v3", stars: 0, activeAt: when(1400), language: "JavaScript", fork: false, archived: false },
   ],
   contributions: null,
   habits: null,

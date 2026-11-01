@@ -267,7 +267,9 @@ function tile(g: CanvasRenderingContext2D, img: HTMLCanvasElement, offset: numbe
   if (x + img.width < LW) g.drawImage(img, x + img.width, y);
 }
 
-function drawDoor(g: CanvasRenderingContext2D, x: number, state: "closed" | "knock" | "treat" | "trick", t: number, pal: Palette) {
+type DoorState = "closed" | "knock" | "treat" | "trick" | "rest";
+
+function drawDoor(g: CanvasRenderingContext2D, x: number, state: DoorState, t: number, pal: Palette) {
   const dw = 28, dh = 46, top = GROUND - dh;
   const jitter = state === "knock" ? Math.round(Math.sin(t * 40)) : 0;
   g.fillStyle = "#0a0614"; g.fillRect(x - dw / 2 - 2, top - 2, dw + 4, dh + 2);
@@ -283,6 +285,14 @@ function drawDoor(g: CanvasRenderingContext2D, x: number, state: "closed" | "kno
     g.fillStyle = "#5a3216"; g.fillRect(x - dw / 2 + jitter, top, dw, dh);
     g.fillStyle = "#3b2010"; g.fillRect(x - dw / 2 + 4 + jitter, top + 5, dw - 8, 14); g.fillRect(x - dw / 2 + 4 + jitter, top + 24, dw - 8, 17);
     g.fillStyle = pal.accentSoft; g.fillRect(x + 7 + jitter, top + 22, 3, 3);
+    if (state === "rest") {
+      // A wreath: this door stays shut out of respect, not neglect.
+      for (let a = 0; a < 24; a++) {
+        const k = (a / 24) * Math.PI * 2;
+        g.fillStyle = a % 3 ? "#3f8f3a" : "#ff9f1c";
+        g.fillRect(Math.round(x + Math.cos(k) * 8) - 1, Math.round(top + 14 + Math.sin(k) * 8) - 1, 3, 3);
+      }
+    }
   }
 }
 
@@ -358,14 +368,17 @@ function drawEnd(ctx: CanvasRenderingContext2D, a: Atlas, art: SceneArt, t: numb
     [String(verdict.treats), verdict.treats === 1 ? ui.oneTreat : ui.treats, pal.accentSoft],
     [String(verdict.tricks), verdict.tricks === 1 ? ui.oneTrick : ui.tricks, pal.trick],
   ];
+  if (verdict.rested > 0) cells.push([String(verdict.rested), verdict.rested === 1 ? ui.oneRested : ui.rested, pal.muted]);
   if (verdict.longestStreak !== null) cells.push([String(verdict.longestStreak), ui.streak, pal.text]);
-  const cw = 300;
+  const cw = Math.min(300, 1000 / cells.length);
   cells.forEach(([n, label, col], i) => {
     const x = WIDTH / 2 + (i - (cells.length - 1) / 2) * cw;
     text(ctx, n, x, 1480, `700 76px ${MONO}`, col);
     text(ctx, label, x, 1548, `400 30px ${MONO}`, pal.muted);
   });
   text(ctx, v.stat, WIDTH / 2, 1640, `400 ${v.stat.length > 44 ? 28 : 32}px ${MONO}`, pal.text);
+  const exorcised = verdict.doors.filter((x) => x.exorcised !== undefined).length;
+  if (exorcised) text(ctx, ui.exorcisedCount(exorcised), WIDTH / 2, 1712, `700 34px ${MONO}`, pal.accent);
   ctx.globalAlpha = 1;
 }
 
@@ -379,7 +392,7 @@ export function renderFrame(ctx: CanvasRenderingContext2D, a: Atlas, art: SceneA
   const stop = (n: number) => n * SPACING;
 
   let petX: number, row: number = ROW.runRight;
-  let doorState: "closed" | "knock" | "treat" | "trick" = "closed";
+  let doorState: DoorState = "closed";
   if (walked < 0) petX = stop(0) - SPACING + (SPACING * 0.3 * (t / INTRO));
   else if (finished) petX = stop(Math.max(0, doors.length - 1));
   else if (local < WALK) {
@@ -389,7 +402,7 @@ export function renderFrame(ctx: CanvasRenderingContext2D, a: Atlas, art: SceneA
   else {
     petX = stop(i);
     doorState = doors[i].outcome;
-    row = doors[i].outcome === "treat" ? ROW.jumping : ROW.failed;
+    row = doors[i].outcome === "treat" ? ROW.jumping : doors[i].outcome === "rest" ? ROW.waiting : ROW.failed;
   }
   const cam = petX - PET_SCREEN_X;
   const rt = !finished && doorState !== "closed" && doorState !== "knock" ? local - WALK - KNOCK : -1;
@@ -420,8 +433,9 @@ export function renderFrame(ctx: CanvasRenderingContext2D, a: Atlas, art: SceneA
     drawDoor(g, hx, n === i ? doorState : passed ? door.outcome : "closed", t, pal);
     if (d.theme === "muertos") {
       sprite(g, door.outcome === "treat" ? MARIGOLD : CANDLE, hx - 54, GROUND - 8, OBJECT_COLORS);
+      if (door.outcome === "rest") sprite(g, GRAVE, hx - 70, GROUND - 7, OBJECT_COLORS);
       sprite(g, MARIGOLD, hx + 42, GROUND - 7, OBJECT_COLORS);
-    } else if (door.house === "ruin") {
+    } else if (door.house === "ruin" || door.outcome === "rest") {
       sprite(g, GRAVE, hx + 46, GROUND - 7, OBJECT_COLORS);
     } else {
       sprite(g, PUMPKIN, hx + 42, GROUND - 10, OBJECT_COLORS);
@@ -439,8 +453,20 @@ export function renderFrame(ctx: CanvasRenderingContext2D, a: Atlas, art: SceneA
 
   if (rt >= 0) {
     const hx = stop(i) + HOUSE_AHEAD - cam;
-    if (doorState === "treat") drawCandy(g, hx, rt, i + 1, pal);
-    else {
+    if (doorState === "treat") {
+      drawCandy(g, hx, rt, i + 1, pal);
+      // Exorcised: the ghost that lived here leaves for good, fast and fading.
+      if (doors[i].exorcised !== undefined && rt < 1.2) {
+        g.globalAlpha = Math.max(0, 1 - rt / 1.2);
+        const gx = hx - 5 + rt * 60 + Math.sin(rt * 14) * 4, gy = GROUND - 60 - rt * rt * 160;
+        sprite(g, GHOST, Math.round(gx), Math.round(gy), OBJECT_COLORS);
+        g.globalAlpha = 1;
+      }
+    } else if (doorState === "rest") {
+      // A single candle flame floating up: no scare, just respect.
+      g.fillStyle = pal.accentSoft;
+      g.fillRect(Math.round(hx - 1 + Math.sin(rt * 5) * 2), Math.round(GROUND - 52 - rt * 30), 2, 3);
+    } else {
       const gy = GROUND - 46 - Math.min(rt * 90, 70) + Math.sin(rt * 6) * 3;
       sprite(g, GHOST, Math.round(hx - 5), Math.round(gy), OBJECT_COLORS);
       drawBats(g, hx, rt);
@@ -451,6 +477,9 @@ export function renderFrame(ctx: CanvasRenderingContext2D, a: Atlas, art: SceneA
   ctx.drawImage(art.buffer, shake * PX, 0, WIDTH, HEIGHT);
   if (doorState === "trick" && rt < 0.3) {
     ctx.fillStyle = `rgba(90,50,200,${0.4 * (1 - rt / 0.3)})`; ctx.fillRect(0, 0, WIDTH, HEIGHT);
+  }
+  if (doorState === "treat" && doors[i]?.exorcised !== undefined && rt >= 0 && rt < 0.35) {
+    ctx.fillStyle = `rgba(255,243,196,${0.45 * (1 - rt / 0.35)})`; ctx.fillRect(0, 0, WIDTH, HEIGHT);
   }
   // The end card draws its own, bigger pet, so this one bows out as the card fades in.
   ctx.globalAlpha = finished ? Math.max(0, 1 - local / 0.3) : 1;
@@ -483,8 +512,10 @@ export function renderFrame(ctx: CanvasRenderingContext2D, a: Atlas, art: SceneA
     const pop = easeBack(Math.min(1, rt / 0.28));
     ctx.save();
     ctx.translate(WIDTH / 2, 520); ctx.scale(pop, pop);
-    const treat = door.outcome === "treat";
-    text(ctx, treat ? ui.treat : ui.trick, 0, 0, `176px ${DISPLAY}`, treat ? pal.accent : pal.trick, 14);
+    const headline = door.exorcised !== undefined ? ui.exorcised : door.outcome === "treat" ? ui.treat : door.outcome === "rest" ? ui.rest : ui.trick;
+    const color = door.outcome === "treat" ? pal.accent : door.outcome === "rest" ? pal.muted : pal.trick;
+    const size = fitLines(ctx, headline, DISPLAY, 980, 176, 96).size;
+    text(ctx, headline, 0, 0, `${size}px ${DISPLAY}`, color, 14);
     ctx.restore();
     if (rt > 0.15) {
       ctx.font = `700 40px ${MONO}`;
