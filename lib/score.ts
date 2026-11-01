@@ -1,62 +1,89 @@
-import type { Repo } from "./github";
+import type { GitHubProfile, Repo } from "./github";
+
+export type HouseStyle = "mansion" | "cottage" | "ruin";
 
 export type Door = {
   repo: string;
   outcome: "treat" | "trick";
-  label: string;
+  stars: number;
+  days: number;
+  language: string | null;
+  house: HouseStyle;
 };
 
+export type VerdictId =
+  | "empty" | "fullSize" | "graveyard" | "nightKnocker"
+  | "sugarRush" | "candyHoarder" | "hauntedKeeper" | "trickOrTreater";
+
 export type Verdict = {
+  id: VerdictId;
   doors: Door[];
   treats: number;
   tricks: number;
-  title: string;
-  tagline: string;
+  // The number the verdict hangs on; the wording lives in lib/i18n.ts.
+  stat: number;
+  longestStreak: number | null;
 };
 
 const DAY = 86_400_000;
+const DOORS = 5;
+const ACTIVE_DAYS = 120;
+const ABANDONED_DAYS = 365;
 
-function ageLabel(days: number) {
-  if (days < 1) return "today";
-  if (days < 30) return `${Math.round(days)}d ago`;
-  if (days < 365) return `${Math.round(days / 30)}mo ago`;
-  return `${(days / 365).toFixed(1)}y ago`;
+/** Stars buy a repo some grace, but no repo stays alive forever without a push. */
+export function isAlive(days: number, stars: number) {
+  return days < ACTIVE_DAYS || (stars >= 10 && days < ABANDONED_DAYS);
 }
 
-export function knockOnDoors(repos: Repo[], now = Date.now()): Verdict {
-  const own = repos.filter((r) => !r.fork);
-  const pool = own.length ? own : repos;
-  // 5 doors: mix of most-starred and most-recent, deduped
-  const byStars = [...pool].sort((a, b) => b.stars - a.stars).slice(0, 3);
-  const byPush = [...pool].sort((a, b) => +new Date(b.pushedAt) - +new Date(a.pushedAt));
-  const oldest = [...pool].sort((a, b) => +new Date(a.pushedAt) - +new Date(b.pushedAt)).slice(0, 2);
-  const picked = new Map<string, Repo>();
-  for (const r of [...byStars, ...oldest, ...byPush]) {
-    if (picked.size >= 5) break;
-    picked.set(r.name, r);
-  }
+function houseFor(days: number, stars: number): HouseStyle {
+  if (!isAlive(days, stars)) return "ruin";
+  return stars >= 10 || days < 30 ? "mansion" : "cottage";
+}
 
-  const doors: Door[] = [...picked.values()].map((r) => {
+/** Best-known repos first, the most abandoned one last so the run ends on the scare. */
+function pickRepos(pool: Repo[]): Repo[] {
+  const age = (r: Repo) => +new Date(r.pushedAt);
+  const byStars = [...pool].sort((a, b) => b.stars - a.stars);
+  const byPush = [...pool].sort((a, b) => age(b) - age(a));
+  const finale = byPush[byPush.length - 1];
+  const picked = new Map<string, Repo>();
+  for (const r of [...byStars.slice(0, 2), ...byPush, ...byStars]) {
+    if (picked.size >= DOORS - 1) break;
+    if (r !== finale) picked.set(r.name, r);
+  }
+  return finale ? [...picked.values(), finale] : [];
+}
+
+export function knockOnDoors(profile: Pick<GitHubProfile, "repos" | "contributions" | "habits">, now = Date.now()): Verdict {
+  const own = profile.repos.filter((r) => !r.fork);
+  const pool = own.length ? own : profile.repos;
+
+  const doors: Door[] = pickRepos(pool).map((r) => {
     const days = (now - +new Date(r.pushedAt)) / DAY;
-    const alive = days < 120 || r.stars >= 10;
-    return alive
-      ? { repo: r.name, outcome: "treat", label: r.stars > 0 ? `★ ${r.stars}` : `pushed ${ageLabel(days)}` }
-      : { repo: r.name, outcome: "trick", label: `haunted · ${ageLabel(days)}` };
+    return {
+      repo: r.name,
+      outcome: isAlive(days, r.stars) ? "treat" : "trick",
+      stars: r.stars,
+      days,
+      language: r.language,
+      house: houseFor(days, r.stars),
+    };
   });
 
   const treats = doors.filter((d) => d.outcome === "treat").length;
   const tricks = doors.length - treats;
-  const ratio = doors.length ? treats / doors.length : 0;
+  const dead = pool.filter((r) => (now - +new Date(r.pushedAt)) / DAY >= ABANDONED_DAYS).length;
+  const totalStars = pool.reduce((sum, r) => sum + r.stars, 0);
+  const { contributions: c, habits: h } = profile;
+  const nightPct = h && h.sampled >= 20 ? Math.round(h.nightShare * 100) : 0;
 
-  let title = "The Empty Bucket";
-  let tagline = "No doors to knock on… yet. Ship something spooky.";
-  if (doors.length) {
-    if (ratio === 1) [title, tagline] = ["Full-Size Candy Bar", "Every repo hands out the good stuff."];
-    else if (ratio >= 0.6) [title, tagline] = ["Sugar Rush Shipper", "Mostly treats. A ghost or two in the attic."];
-    else if (ratio >= 0.4) [title, tagline] = ["Trick-or-Treater", "Half candy, half cobwebs. Balanced, as all things should be."];
-    else if (ratio > 0) [title, tagline] = ["Haunted House Keeper", "Your repos aren't dead. They're just… resting."];
-    else [title, tagline] = ["Graveyard Shift", "Every door was a trick. Time to raise the dead."];
-  }
-
-  return { doors, treats, tricks, title, tagline };
+  const base = { doors, treats, tricks, longestStreak: c?.longestStreak ?? null };
+  if (!doors.length) return { ...base, id: "empty", stat: 0 };
+  if (!treats) return { ...base, id: "graveyard", stat: dead };
+  if (nightPct >= 30) return { ...base, id: "nightKnocker", stat: nightPct };
+  if (c && c.total >= 1000) return { ...base, id: "sugarRush", stat: c.total };
+  if (totalStars >= 100) return { ...base, id: "candyHoarder", stat: totalStars };
+  if (!tricks) return { ...base, id: "fullSize", stat: treats };
+  if (tricks > treats) return { ...base, id: "hauntedKeeper", stat: dead };
+  return { ...base, id: "trickOrTreater", stat: treats };
 }

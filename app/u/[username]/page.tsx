@@ -1,71 +1,57 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import Scene from "@/components/Scene";
+import Studio from "@/components/Studio";
+import { parseLang, parseTheme, UI, verdictText } from "@/lib/i18n";
+import { SITE_URL } from "@/lib/site";
 import { loadResult } from "./data";
 
-type Params = { params: Promise<{ username: string }> };
+type Params = { params: Promise<{ username: string }>; searchParams: Promise<{ lang?: string; theme?: string }> };
 
-export async function generateMetadata({ params }: Params): Promise<Metadata> {
+export async function generateMetadata({ params, searchParams }: Params): Promise<Metadata> {
   const { username } = await params;
+  const lang = parseLang((await searchParams).lang, (await headers()).get("accept-language") ?? "");
   const r = await loadResult(username).catch(() => null);
-  if (!r) return { title: "Trick or Commit 🎃" };
-  const title = `@${r.profile.login} is a ${r.verdict.title} 🎃`;
-  const description = `${r.verdict.treats} treats, ${r.verdict.tricks} tricks. ${r.verdict.tagline}`;
-  return { title, description, openGraph: { title, description }, twitter: { card: "summary_large_image", title, description } };
+  if (!r) return { title: "Trick or Commit" };
+  const v = verdictText(r.verdict, lang);
+  const title = `@${r.profile.login}: ${v.title}`;
+  const description = `${r.verdict.treats} ${UI[lang].treats}, ${r.verdict.tricks} ${UI[lang].tricks}. ${v.tagline}`;
+  const images = [{ url: `/api/og/${r.profile.login}?lang=${lang}`, width: 1200, height: 630, alt: title }];
+  return { title, description, openGraph: { title, description, images }, twitter: { card: "summary_large_image", title, description, images } };
 }
 
-export default async function ResultPage({ params }: Params) {
+export default async function ResultPage({ params, searchParams }: Params) {
   const { username } = await params;
+  const query = await searchParams;
+  const lang = parseLang(query.lang, (await headers()).get("accept-language") ?? "");
+  const ui = UI[lang];
   let r;
   try {
     r = await loadResult(username);
   } catch {
     return (
-      <>
-        <h1>👻 Spooky error</h1>
-        <p className="lead">GitHub is rate-limiting us right now. Try again in a minute.</p>
-        <Link className="btn ghost" href="/">Back</Link>
-      </>
+      <div className="message">
+        <h1>{ui.errorTitle}</h1>
+        <p className="lead">{ui.errorBody}</p>
+        <Link className="btn ghost" href={`/?lang=${lang}`}>{ui.back}</Link>
+      </div>
     );
   }
   if (!r) notFound();
 
-  const { profile, verdict, pet } = r;
-  const site = process.env.NEXT_PUBLIC_SITE_URL || "";
-  const shareText = `My Petdex pet went trick-or-treating through my GitHub repos 🎃\n\n🍬 ${verdict.treats} treats · 🕸️ ${verdict.tricks} tricks → "${verdict.title}"\n\nTry yours:`;
-  const shareUrl = `https://x.com/intent/post?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(`${site}/u/${profile.login}`)}`;
+  const { profile, verdict, pets, pet } = r;
 
+  if (!pet) return <div className="message"><p className="lead">{ui.noPet}</p></div>;
   return (
-    <>
-      <h1 style={{ fontSize: "clamp(32px,6vw,52px)" }}>
-        @{profile.login} is a <span>{verdict.title}</span>
-      </h1>
-      <p className="lead">{verdict.tagline}</p>
-
-      {pet ? (
-        <Scene login={profile.login} petSlug={pet.slug} petName={pet.name} verdict={verdict} />
-      ) : (
-        <p className="muted">Couldn&apos;t reach Petdex for a pet right now. Refresh in a moment.</p>
-      )}
-
-      <div className="actions" style={{ marginTop: 12 }}>
-        <a className="btn" href={shareUrl} target="_blank" rel="noopener noreferrer">
-          Post on X
-        </a>
-        <Link className="btn ghost" href="/">Try another</Link>
-      </div>
-
-      <ol className="steps">
-        <li>Hit <b>Render video</b> and wait for the full run.</li>
-        <li>Download it, then attach it to your post on X.</li>
-        {pet && (
-          <li>
-            Like your pet? <code>npx petdex install {pet.slug}</code>
-            {pet.author ? <> · made by {pet.author}</> : null}
-          </li>
-        )}
-      </ol>
-    </>
+    <Studio
+      login={profile.login}
+      verdict={verdict}
+      pets={pets}
+      initialPet={pet}
+      lang={lang}
+      initialTheme={parseTheme(query.theme)}
+      siteUrl={SITE_URL}
+    />
   );
 }

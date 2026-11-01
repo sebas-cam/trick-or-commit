@@ -6,12 +6,26 @@ export type Repo = {
   fork: boolean;
 };
 
+export type Contributions = {
+  total: number;
+  longestStreak: number;
+};
+
+export type CommitHabits = {
+  sampled: number;
+  nightShare: number;
+  weekendShare: number;
+};
+
 export type GitHubProfile = {
   login: string;
   name: string | null;
   avatarUrl: string;
   publicRepos: number;
   repos: Repo[];
+  // Both are best effort: null when there's no token or the API said no.
+  contributions: Contributions | null;
+  habits: CommitHabits | null;
 };
 
 const USERNAME_RE = /^[a-z\d](?:[a-z\d]|-(?=[a-z\d])){0,38}$/i;
@@ -29,6 +43,52 @@ function headers(): HeadersInit {
   return h;
 }
 
+// The contributions calendar is GraphQL only, and GraphQL always requires a token.
+async function getContributions(login: string): Promise<Contributions | null> {
+  if (!process.env.GITHUB_TOKEN) return null;
+  const query = `query($login:String!){user(login:$login){contributionsCollection{contributionCalendar{totalContributions weeks{contributionDays{contributionCount}}}}}}`;
+  const res = await fetch("https://api.github.com/graphql", {
+    method: "POST",
+    headers: headers(),
+    body: JSON.stringify({ query, variables: { login } }),
+    next: { revalidate: 3600 },
+  });
+  if (!res.ok) return null;
+  const calendar = (await res.json()).data?.user?.contributionsCollection?.contributionCalendar;
+  if (!calendar) return null;
+  let longestStreak = 0, streak = 0;
+  for (const week of calendar.weeks)
+    for (const day of week.contributionDays) {
+      streak = day.contributionCount > 0 ? streak + 1 : 0;
+      longestStreak = Math.max(longestStreak, streak);
+    }
+  return { total: calendar.totalContributions, longestStreak };
+}
+
+/** Commit dates carry the author's UTC offset, so reading them as written gives their local time. */
+export function habitsFrom(dates: string[]): CommitHabits | null {
+  if (!dates.length) return null;
+  let night = 0, weekend = 0;
+  for (const iso of dates) {
+    if (+iso.slice(11, 13) < 5) night++;
+    // Date.UTC on the written date, so the offset can't push it into another day.
+    const day = new Date(Date.UTC(+iso.slice(0, 4), +iso.slice(5, 7) - 1, +iso.slice(8, 10))).getUTCDay();
+    if (day === 0 || day === 6) weekend++;
+  }
+  return { sampled: dates.length, nightShare: night / dates.length, weekendShare: weekend / dates.length };
+}
+
+async function getHabits(login: string): Promise<CommitHabits | null> {
+  const q = encodeURIComponent(`author:${login}`);
+  const res = await fetch(`https://api.github.com/search/commits?q=${q}&sort=author-date&order=desc&per_page=100`, {
+    headers: headers(),
+    next: { revalidate: 3600 },
+  });
+  if (!res.ok) return null;
+  const items: any[] = (await res.json()).items ?? [];
+  return habitsFrom(items.map((c) => c.commit?.author?.date).filter((d) => typeof d === "string"));
+}
+
 export async function getProfile(username: string): Promise<GitHubProfile | null> {
   if (!isValidUsername(username)) return null;
   if (process.env.MOCK === "1") return mockProfile(username);
@@ -41,6 +101,10 @@ export async function getProfile(username: string): Promise<GitHubProfile | null
   if (!userRes.ok || !reposRes.ok) throw new Error(`GitHub API error ${userRes.status}/${reposRes.status}`);
   const user = await userRes.json();
   const rawRepos: any[] = await reposRes.json();
+  const [contributions, habits] = await Promise.all([
+    getContributions(user.login).catch(() => null),
+    getHabits(user.login).catch(() => null),
+  ]);
   return {
     login: user.login,
     name: user.name,
@@ -53,6 +117,8 @@ export async function getProfile(username: string): Promise<GitHubProfile | null
       language: r.language,
       fork: !!r.fork,
     })),
+    contributions,
+    habits,
   };
 }
 
@@ -67,5 +133,7 @@ function mockProfile(login: string): GitHubProfile {
       { name: "old-portfolio-2021", stars: 0, pushedAt: d(1500), language: "HTML", fork: false },
       { name: "n8n-workflows", stars: 5, pushedAt: d(60), language: null, fork: false },
     ],
+    contributions: { total: 812, longestStreak: 14 },
+    habits: { sampled: 100, nightShare: 0.18, weekendShare: 0.22 },
   };
 }

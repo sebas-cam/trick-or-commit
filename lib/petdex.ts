@@ -31,7 +31,7 @@ function findSpriteUrl(p: any): string | null {
 }
 
 function authorOf(p: any): string | null {
-  const a = p.author ?? p.creator ?? p.submitter ?? p.owner;
+  const a = p.author ?? p.creator ?? p.submittedBy ?? p.submitter ?? p.owner;
   if (typeof a === "string") return a;
   if (a && typeof a === "object") return a.handle ?? a.username ?? a.name ?? null;
   return null;
@@ -58,7 +58,18 @@ function hash(s: string) {
   return h >>> 0;
 }
 
-/** Same username always gets the same pet. */
+// Hand-picked originals. The open manifest also holds fan-made takes on licensed characters.
+const CURATED = [
+  "boba", "kebo", "cash-cuy", "boxcat", "cache-capy", "prompt-penguin",
+  "byte-bunny", "pixel-panda", "scoop", "socksy", "noir-webling", "nukey",
+];
+
+export function curatedPets(pets: Pet[]): Pet[] {
+  const curated = CURATED.map((slug) => pets.find((p) => p.slug === slug)).filter((p): p is Pet => !!p);
+  return curated.length ? curated : pets.slice(0, CURATED.length);
+}
+
+/** Same username always starts with the same pet. */
 export function pickPet(pets: Pet[], username: string): Pet | null {
   if (!pets.length) return null;
   return pets[hash(username) % pets.length];
