@@ -1,7 +1,7 @@
 import { timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
-import { exchangeCode, getLogin } from "@/lib/githubApp";
+import { exchangeCode, getLogin, getSharedRepos, installUrl } from "@/lib/githubApp";
 import { parseLang } from "@/lib/i18n";
 import { cookieOptions, OAUTH_COOKIE, seal, SESSION_COOKIE, SESSION_SECONDS } from "@/lib/session";
 import { SITE_URL } from "@/lib/site";
@@ -31,8 +31,11 @@ export async function GET(req: Request) {
     try {
       const token = await exchangeCode(code, pending.verifier);
       if (token) {
-        res = NextResponse.redirect(`${SITE_URL}/me?lang=${lang}`);
-        res.cookies.set(SESSION_COOKIE, seal({ token, login: await getLogin(token) }), cookieOptions(SESSION_SECONDS));
+        const login = await getLogin(token);
+        // First time here: go straight to picking repos. GitHub sends them back through the Setup URL.
+        const { installed } = await getSharedRepos(token, login).catch(() => ({ installed: true }));
+        res = NextResponse.redirect(installed ? `${SITE_URL}/me?lang=${lang}` : installUrl());
+        res.cookies.set(SESSION_COOKIE, seal({ token, login }), cookieOptions(SESSION_SECONDS));
       }
     } catch {
       res = NextResponse.redirect(`${SITE_URL}/?lang=${lang}&auth=failed`);
