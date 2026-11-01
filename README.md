@@ -35,13 +35,30 @@ One click on Vercel. Set these environment variables:
 | `GITHUB_TOKEN` | Fine-grained token, no scopes needed. Raises the REST limit from 60 to 5,000 req/h and enables contributions and streaks, which GitHub only serves through GraphQL. Without it those stats are left out. |
 | `NEXT_PUBLIC_SITE_URL` | Your deployed URL, used for share links and OG images. |
 
+### Private repos (optional)
+
+People can sign in with a GitHub App and add private repos they choose to their run. It only reads metadata, never code. The token lives in an encrypted cookie for an hour and is revoked on sign-out, and there's no database. Private names are hidden until the owner reveals them, and that run only exists at `/me`: `/u/<username>` always stays public data.
+
+Register a [GitHub App](https://github.com/settings/apps/new) with:
+
+| Setting | Value |
+| --- | --- |
+| Callback URL | `<site>/api/auth/github/callback` |
+| Setup URL | `<site>/api/auth/github/setup`, with **Redirect on update** on |
+| Request user authorization during installation | Off |
+| Webhook | Inactive |
+| Permissions | Repository → Metadata: Read-only. Nothing else. |
+| Where can it be installed | Any account |
+
+Then set `GITHUB_APP_CLIENT_ID`, `GITHUB_APP_CLIENT_SECRET`, `GITHUB_APP_SLUG` (the name in the app's URL) and `SESSION_SECRET` (`openssl rand -base64 32`). Without all four, the option stays hidden.
+
 ## Stack
 
 Next.js 16 (App Router) · Canvas 2D · Web Audio · WebCodecs + Mediabunny · next/og. No database. Fonts: Creepster, JetBrains Mono, DM Sans.
 
 ## Credits
 
-Pets come from [Petdex](https://petdex.dev) by [Crafter Station](https://crafter.run). Each pet belongs to its creator. Inspired by Crafter Station's Petdex Halloween experiment. Not affiliated with GitHub or Petdex.
+Pets come from [Petdex](https://petdex.dev) (https://crafter.run). Each pet belongs to its creator. Not affiliated with GitHub or Petdex.
 
 ## License
 

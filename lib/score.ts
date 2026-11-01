@@ -9,6 +9,7 @@ export type Door = {
   days: number;
   language: string | null;
   house: HouseStyle;
+  private?: boolean;
 };
 
 export type VerdictId =
@@ -54,6 +55,14 @@ function pickRepos(pool: Repo[]): Repo[] {
   return finale ? [...picked.values(), finale] : [];
 }
 
+/** Strips everything identifying from private doors, leaving only the last push. */
+export function maskPrivate(verdict: Verdict, label: string): Verdict {
+  return {
+    ...verdict,
+    doors: verdict.doors.map((d) => (d.private ? { ...d, repo: label, language: null, stars: 0 } : d)),
+  };
+}
+
 export function knockOnDoors(profile: Pick<GitHubProfile, "repos" | "contributions" | "habits">, now = Date.now()): Verdict {
   const own = profile.repos.filter((r) => !r.fork);
   const pool = own.length ? own : profile.repos;
@@ -67,6 +76,7 @@ export function knockOnDoors(profile: Pick<GitHubProfile, "repos" | "contributio
       days,
       language: r.language,
       house: houseFor(days, r.stars),
+      private: r.private,
     };
   });
 

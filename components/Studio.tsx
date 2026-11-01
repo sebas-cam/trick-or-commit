@@ -7,7 +7,7 @@ import { exportVideo, type ExportResult } from "@/lib/export";
 import { ageLabel, UI, verdictText, type Lang, type Theme } from "@/lib/i18n";
 import type { Pet } from "@/lib/petdex";
 import { HEIGHT, renderFrame, WIDTH, type SceneData } from "@/lib/scene";
-import type { Verdict } from "@/lib/score";
+import { maskPrivate, type Verdict } from "@/lib/score";
 import { useScene } from "./useScene";
 
 type Props = {
@@ -18,11 +18,19 @@ type Props = {
   lang: Lang;
   initialTheme: Theme;
   siteUrl: string;
+  // Set on /me, the signed-in run: if absent, everything here is public data.
+  privateRun?: { sharedCount: number; manageUrl: string };
+  privateLoginUrl?: string;
 };
 
-export default function Studio({ login, verdict, pets, initialPet, lang, initialTheme, siteUrl }: Props) {
+export default function Studio({ login, verdict: fullVerdict, pets, initialPet, lang, initialTheme, siteUrl, privateRun, privateLoginUrl }: Props) {
   const ui = UI[lang];
   const site = siteUrl.replace(/^https?:\/\//, "");
+  const [showNames, setShowNames] = useState(false);
+  const verdict = useMemo(
+    () => (showNames ? fullVerdict : maskPrivate(fullVerdict, ui.privateRepo)),
+    [showNames, fullVerdict, ui.privateRepo],
+  );
   const v = verdictText(verdict, lang);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [pet, setPet] = useState(initialPet);
@@ -99,6 +107,11 @@ export default function Studio({ login, verdict, pets, initialPet, lang, initial
     setTheme(next);
   }
 
+  function toggleNames() {
+    resetVideo();
+    setShowNames((on) => !on);
+  }
+
   async function render() {
     if (!atlas || !art.current) return;
     const scene = art.current;
@@ -141,7 +154,8 @@ export default function Studio({ login, verdict, pets, initialPet, lang, initial
   async function shareVideo() {
     if (!video) return;
     const file = new File([video.blob], `trick-or-commit-${login}.${video.ext}`, { type: video.blob.type });
-    await navigator.share({ files: [file], text: `${shareText} ${pageUrl}` }).catch(() => null);
+    // A private run's page is only visible to its owner, so point at the site instead.
+    await navigator.share({ files: [file], text: `${shareText} ${privateRun ? siteUrl : pageUrl}` }).catch(() => null);
   }
 
   async function copyLink() {
@@ -191,12 +205,38 @@ export default function Studio({ login, verdict, pets, initialPet, lang, initial
         {failed && <p className="note" role="alert">{ui.renderFail}</p>}
         {video?.ext === "webm" && <p className="note">{ui.webm}</p>}
 
-        <div className="share">
-          <a href={`https://x.com/intent/post?text=${q(shareText)}&url=${q(pageUrl)}`} target="_blank" rel="noopener noreferrer">X</a>
-          <a href={`https://www.linkedin.com/sharing/share-offsite/?url=${q(pageUrl)}`} target="_blank" rel="noopener noreferrer">LinkedIn</a>
-          <a href={`https://wa.me/?text=${q(`${shareText} ${pageUrl}`)}`} target="_blank" rel="noopener noreferrer">WhatsApp</a>
-          <button type="button" className="link" onClick={copyLink}>{copied ? ui.copied : ui.copy}</button>
-        </div>
+        {privateRun ? (
+          <section className="private-run">
+            <p className="note">{ui.privateRunNote}</p>
+            <p className="stat-line">{privateRun.sharedCount > 0 ? ui.privateCount(privateRun.sharedCount) : ui.noneShared}</p>
+            <div className="actions">
+              <a className="btn ghost" href={privateRun.manageUrl}>{ui.chooseRepos}</a>
+              {privateRun.sharedCount > 0 && (
+                <button type="button" className="ghost" onClick={toggleNames} aria-pressed={showNames}>
+                  {showNames ? ui.hideNames : ui.showNames}
+                </button>
+              )}
+              <form method="post" action={`/api/auth/logout?lang=${lang}`}>
+                <button className="ghost">{ui.signOut}</button>
+              </form>
+            </div>
+          </section>
+        ) : (
+          <>
+            <div className="share">
+              <a href={`https://x.com/intent/post?text=${q(shareText)}&url=${q(pageUrl)}`} target="_blank" rel="noopener noreferrer">X</a>
+              <a href={`https://www.linkedin.com/sharing/share-offsite/?url=${q(pageUrl)}`} target="_blank" rel="noopener noreferrer">LinkedIn</a>
+              <a href={`https://wa.me/?text=${q(`${shareText} ${pageUrl}`)}`} target="_blank" rel="noopener noreferrer">WhatsApp</a>
+              <button type="button" className="link" onClick={copyLink}>{copied ? ui.copied : ui.copy}</button>
+            </div>
+            {privateLoginUrl && (
+              <section>
+                <a className="btn ghost" href={privateLoginUrl}>{ui.privateCta}</a>
+                <p className="note">{ui.privateHint}</p>
+              </section>
+            )}
+          </>
+        )}
 
         <fieldset className="picker">
           <legend>{ui.theme}</legend>
@@ -222,8 +262,8 @@ export default function Studio({ login, verdict, pets, initialPet, lang, initial
           <section>
             <h2 className="eyebrow">{ui.log}</h2>
             <ul className="log">
-              {verdict.doors.map((d) => (
-                <li key={d.repo}>
+              {verdict.doors.map((d, i) => (
+                <li key={i}>
                   <span>{d.repo}</span>
                   <span className={d.outcome}>{d.outcome === "treat" ? ui.oneTreat : ui.oneTrick} · {ageLabel(d.days, lang)}</span>
                 </li>

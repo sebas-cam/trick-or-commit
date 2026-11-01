@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import { headers } from "next/headers";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import Studio from "@/components/Studio";
+import { privateReposEnabled } from "@/lib/githubApp";
 import { parseLang, parseTheme, UI, verdictText } from "@/lib/i18n";
 import { SITE_URL } from "@/lib/site";
 import { loadResult } from "./data";
@@ -11,7 +11,7 @@ type Params = { params: Promise<{ username: string }>; searchParams: Promise<{ l
 
 export async function generateMetadata({ params, searchParams }: Params): Promise<Metadata> {
   const { username } = await params;
-  const lang = parseLang((await searchParams).lang, (await headers()).get("accept-language") ?? "");
+  const lang = parseLang((await searchParams).lang);
   const r = await loadResult(username).catch(() => null);
   if (!r) return { title: "Trick or Commit" };
   const v = verdictText(r.verdict, lang);
@@ -24,7 +24,7 @@ export async function generateMetadata({ params, searchParams }: Params): Promis
 export default async function ResultPage({ params, searchParams }: Params) {
   const { username } = await params;
   const query = await searchParams;
-  const lang = parseLang(query.lang, (await headers()).get("accept-language") ?? "");
+  const lang = parseLang(query.lang);
   const ui = UI[lang];
   let r;
   try {
@@ -52,6 +52,7 @@ export default async function ResultPage({ params, searchParams }: Params) {
       lang={lang}
       initialTheme={parseTheme(query.theme)}
       siteUrl={SITE_URL}
+      privateLoginUrl={privateReposEnabled() ? `/api/auth/github/login?lang=${lang}` : undefined}
     />
   );
 }

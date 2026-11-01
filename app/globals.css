@@ -100,5 +100,7 @@ button.chip:hover:not(:disabled) { background: var(--card); }
 .log { list-style: none; margin: 0; padding: 0; font: 400 14px var(--mono); }
 .log li { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2px 16px; padding: 9px 0; border-top: 2px solid var(--card); overflow-wrap: anywhere; }
 .install code { display: block; background: var(--card); padding: 14px; font: 400 14px var(--mono); overflow-x: auto; }
+.private-run { display: flex; flex-direction: column; gap: 10px; }
+.private-run .note { margin: 0; }
 .message { text-align: center; padding: 64px 0; }
 .message .lead { margin-left: auto; margin-right: auto; }

@@ -1,14 +1,15 @@
-import { headers } from "next/headers";
 import DemoScene from "@/components/DemoScene";
 import KnockForm from "@/components/KnockForm";
+import { privateReposEnabled } from "@/lib/githubApp";
 import { parseLang, UI, VERDICT_IDS, verdictText } from "@/lib/i18n";
 import { curatedPets, getPets, type Pet } from "@/lib/petdex";
 import { SITE_HOST } from "@/lib/site";
 
-type Params = { searchParams: Promise<{ lang?: string }> };
+type Params = { searchParams: Promise<{ lang?: string; auth?: string }> };
 
 export default async function Home({ searchParams }: Params) {
-  const lang = parseLang((await searchParams).lang, (await headers()).get("accept-language") ?? "");
+  const query = await searchParams;
+  const lang = parseLang(query.lang);
   const ui = UI[lang];
   let pet: Pet | null = null;
   try {
@@ -25,6 +26,12 @@ export default async function Home({ searchParams }: Params) {
           <h1>Trick or <span>Commit</span></h1>
           <p className="lead">{ui.lead}</p>
           <KnockForm lang={lang} />
+          {query.auth === "failed" && <p className="note" role="alert">{ui.authFailed}</p>}
+          {privateReposEnabled() && (
+            <p className="note">
+              <a href={`/api/auth/github/login?lang=${lang}`}>{ui.privateCta}</a>. {ui.privateHint}
+            </p>
+          )}
         </div>
         <div className="hero-demo">
           {pet && <DemoScene petSlug={pet.slug} petName={pet.name} lang={lang} site={SITE_HOST} />}

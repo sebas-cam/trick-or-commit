@@ -9,4 +9,4 @@ export function proxy(req: NextRequest) {
   return NextResponse.next({ request: { headers } });
 }
 
-export const config = { matcher: ["/", "/u/:path*"] };
+export const config = { matcher: ["/", "/me", "/u/:path*"] };

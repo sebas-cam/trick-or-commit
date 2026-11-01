@@ -15,6 +15,8 @@ export function useScene(canvasRef: RefObject<HTMLCanvasElement | null>, petSlug
   const artRef = useRef<SceneArt | null>(null);
   const { theme, login } = data;
   const doorCount = data.verdict.doors.length;
+  // Houses are painted from the door data, so hiding a repo's details has to repaint them.
+  const doorsKey = data.verdict.doors.map((d) => `${d.repo}:${d.language}`).join("|");
 
   useEffect(() => {
     if (!petSlug) { setStatus("error"); return; }
@@ -51,7 +53,7 @@ export function useScene(canvasRef: RefObject<HTMLCanvasElement | null>, petSlug
     };
     loop();
     return () => cancelAnimationFrame(raf);
-  }, [atlas, theme, login, doorCount, canvasRef]);
+  }, [atlas, theme, login, doorCount, doorsKey, canvasRef]);
 
   return { status, atlas, duration: sceneDuration(doorCount), art: artRef };
 }

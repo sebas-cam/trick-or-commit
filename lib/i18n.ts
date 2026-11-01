@@ -3,9 +3,8 @@ import type { Door, Verdict, VerdictId } from "./score";
 export type Lang = "es" | "en";
 export type Theme = "halloween" | "muertos";
 
-export function parseLang(value: string | undefined, acceptLanguage = ""): Lang {
-  if (value === "es" || value === "en") return value;
-  return /^es\b/i.test(acceptLanguage) ? "es" : "en";
+export function parseLang(value: string | null | undefined): Lang {
+  return value === "es" ? "es" : "en";
 }
 
 export function parseTheme(value: string | undefined): Theme {
@@ -66,6 +65,17 @@ export function doorLine(d: Door, lang: Lang) {
 
 export const UI = {
   es: {
+    privateCta: "Incluir mis repos privados",
+    privateHint: "Solo lectura de metadatos: nunca vemos tu código y no guardamos nada. Tú eliges los repos.",
+    authFailed: "No pudimos conectar con GitHub. Inténtalo de nuevo.",
+    privateRepo: "repo privado",
+    showNames: "Mostrar nombres de repos privados",
+    hideNames: "Ocultar nombres de repos privados",
+    privateRunNote: "Esta versión solo la ves tú. Para compartirla, descarga el video o la imagen.",
+    privateCount: (n: number) => (n === 1 ? "1 repo privado compartido" : `${n} repos privados compartidos`),
+    noneShared: "Aún no compartes repos privados. Elígelos en GitHub.",
+    chooseRepos: "Elegir repos en GitHub",
+    signOut: "Cerrar sesión",
     eyebrow: "TU GITHUB ABRE LA PUERTA",
     lead: "Tu pet de Petdex toca la puerta de cada uno de tus repos. Los activos dan dulces. Los abandonados te asustan.",
     placeholder: "usuario",
@@ -122,6 +132,17 @@ export const UI = {
     isA: "es",
   },
   en: {
+    privateCta: "Include my private repos",
+    privateHint: "Read-only metadata: we never see your code and store nothing. You pick the repos.",
+    authFailed: "Couldn't connect to GitHub. Please try again.",
+    privateRepo: "private repo",
+    showNames: "Show private repo names",
+    hideNames: "Hide private repo names",
+    privateRunNote: "Only you can see this version. To share it, download the video or image.",
+    privateCount: (n: number) => (n === 1 ? "1 private repo shared" : `${n} private repos shared`),
+    noneShared: "You aren't sharing any private repos yet. Pick them on GitHub.",
+    chooseRepos: "Pick repos on GitHub",
+    signOut: "Sign out",
     eyebrow: "YOUR GITHUB OPENS THE DOOR",
     lead: "Your Petdex pet knocks on every one of your repos. Active ones hand out treats. Abandoned ones play tricks.",
     placeholder: "username",

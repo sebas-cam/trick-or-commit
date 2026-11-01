@@ -3,8 +3,7 @@ import Link from "next/link";
 import { parseLang, UI } from "@/lib/i18n";
 
 export default async function NotFound() {
-  const h = await headers();
-  const lang = parseLang(h.get("x-lang") ?? undefined, h.get("accept-language") ?? "");
+  const lang = parseLang((await headers()).get("x-lang"));
   const ui = UI[lang];
   return (
     <div className="message">

@@ -8,7 +8,7 @@ const fontFile = (pkg: string, file: string) => readFile(join(process.cwd(), "no
 
 export async function GET(req: Request, { params }: { params: Promise<{ username: string }> }) {
   const { username } = await params;
-  const lang = parseLang(new URL(req.url).searchParams.get("lang") ?? undefined);
+  const lang = parseLang(new URL(req.url).searchParams.get("lang"));
   const ui = UI[lang];
   const r = await loadResult(username).catch(() => null);
   const v = r && verdictText(r.verdict, lang);

@@ -20,8 +20,7 @@ export const metadata: Metadata = {
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const h = await headers();
-  const lang = parseLang(h.get("x-lang") ?? undefined, h.get("accept-language") ?? "");
+  const lang = parseLang((await headers()).get("x-lang"));
   const ui = UI[lang];
   return (
     <html lang={lang}>
@@ -37,7 +36,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         </header>
         <main className="wrap">{children}</main>
         <footer className="footer">
-          {ui.footer} <a href="https://petdex.dev">Petdex</a> (Crafter Station) · <a href="https://github.com/sebas-cam/trick-or-commit">GitHub</a> · {ui.notAffiliated}
+          {ui.footer} <a href="https://petdex.dev">Petdex</a> · <a href="https://github.com/sebas-cam/trick-or-commit">GitHub</a> · {ui.notAffiliated}
         </footer>
       </body>
     </html>

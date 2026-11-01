@@ -4,6 +4,7 @@ export type Repo = {
   pushedAt: string;
   language: string | null;
   fork: boolean;
+  private?: boolean;
 };
 
 export type Contributions = {
